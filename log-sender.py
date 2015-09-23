@@ -35,7 +35,15 @@ def main(argv=None):
 	myfile.close()
 
 	# Directory to watch
-	directory = str(sys.argv[1])
+	walk_dir = sys.argv[1]
+
+	# Browse into the directory
+	for root, subdirs, files in os.walk(walk_dir):
+		for name in files:
+			full_path = os.path.join(root, name)
+			print "full path : %s" % full_path
+			relative_path = os.path.relpath(full_path, walk_dir)
+			print "relative path : %s" % relative_path
 
 	sent_to_s3(acces_key, secret_key, BUCKET_NAME, '/var/log/lastlog')
 
