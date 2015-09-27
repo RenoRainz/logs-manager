@@ -14,6 +14,9 @@ import time
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import argparse
+import shutil
+import gzip
+
 
 # Global variables
 INPUT_QUEUE_NAME  = 'syslog-input'
@@ -88,6 +91,21 @@ def sent_to_s3(acces_key, secret_key, bucket_name, key, filename, compress, comp
 
 	if compress:
 		print "Compression before sending"
+		# copy file to compress dir
+		compress_file = compress_dir + "/" + str(os.path.basename(filename)) + ".gz"
+		shutil.copyfile(filename, compress_file)
+
+		# Compression
+		with open(filename, 'rb') as f_in, gzip.open(compress_file, 'wb') as f_out:
+			shutil.copyfileobj(f_in, f_out)
+
+		sent_file = open(compress_file, 'r')
+		print "Sent to S3 desactivated"
+		#bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)	
+		sent_file.close()
+
+		# Delete file
+		delete_file(compress_file)
 
 
 	else:
