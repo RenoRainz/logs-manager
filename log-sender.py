@@ -51,7 +51,7 @@ def main(argv=None):
 	# TODO : need to put this in a infinite loop
 
 	# Browse into the directory and check when
-	# the file was modified, if > 1 we process it 
+	# the file was modified, if > 1 we process it
 	for root, subdirs, files in os.walk(walk_dir):
 		for name in files:
 			full_path = os.path.join(root, name)
@@ -60,9 +60,9 @@ def main(argv=None):
 			now = time.time()
 			delta = (int(now) - int(last_modification))
 			if delta > 60 :
-				print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
+				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
 				sent_to_s3(acces_key, secret_key, BUCKET_NAME, relative_path, full_path, compress, compress_dir)
-				
+
 def get_args():
 	"""
     Use the tools.cli methods and then add a few more arguments.
@@ -87,6 +87,12 @@ def sent_to_s3(acces_key, secret_key, bucket_name, key, filename, compress, comp
 	s3_conn = S3Connection(acces_key, secret_key)
 	bucket = s3_conn.get_bucket(bucket_name)
 	bucket_key = Key(bucket)
+
+	# Todo : Fix this
+	if compress:
+		key = str(key) + ".gz"
+		print key
+
 	bucket_key.key = str(key)
 
 	if compress:
@@ -100,25 +106,24 @@ def sent_to_s3(acces_key, secret_key, bucket_name, key, filename, compress, comp
 			shutil.copyfileobj(f_in, f_out)
 
 		sent_file = open(compress_file, 'r')
-		print "Sent to S3 desactivated"
-		#bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)	
+		#print "Sent to S3 desactivated"
+		bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
 		sent_file.close()
 
 		# Delete file
 		delete_file(compress_file)
 
-
 	else:
 		sent_file = open(filename, 'r')
-		print "Sent to S3 desactivated"
-		#bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)	
+		#print "Sent to S3 desactivated"
+		bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
 		sent_file.close()
 
 		# Delete file
 		delete_file(filename)
 
 def delete_file(filename):
-	
+
 	"""
 	Function to delete a proceed file
 	"""
