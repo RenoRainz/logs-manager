@@ -39,9 +39,13 @@ def main(argv=None):
 			secret_key = line.split()[2]
 	myfile.close()
 
+	# Get args
+	args = get_args()
 
     # TODO: put this block in try
+	# Connection to SQS
 	sqs_conn = boto.sqs.connect_to_region(REGION, aws_access_key_id=acces_key, aws_secret_access_key=secret_key)
+	# Connection to S3
 	s3_conn = S3Connection(acces_key, secret_key)
 
     # Get queue
@@ -50,6 +54,7 @@ def main(argv=None):
     # Retrieve messages
 	msg = retrieve_msg(acces_key, secret_key, sqs_conn, queue)
 
+	# Extracting informations : bucket name and key
 	if msg :
 		record = msg.get_body()
 		record_json = json.loads(record)
@@ -59,6 +64,47 @@ def main(argv=None):
 				bucket = record_json['Records'][0]['s3']['bucket']['name']
 				s3_key =  record_json['Records'][0]['s3']['object']['key']
 				print "bucket : %s , key : %s" % (bucket, s3_key)
+				# Retrieve file from S3
+				retrieve_file(s3_conn, bucket, s3_key, args.directory)
+
+def get_args():
+
+	"""
+    Use the tools.cli methods and then add a few more arguments.
+    """
+
+	parser = argparse.ArgumentParser(description='Check SQS for notification and Get log file from S3')
+	parser.add_argument('--directory', type=str, help='Directory to store the file', required=True)
+
+	args = parser.parse_args()
+
+	return args
+
+def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
+
+	"""
+	Function to retrieve a msg from a SQS queue
+	"""
+
+	# get_contents_to_file
+	bucket = s3_conn.get_bucket(bucket_name)
+	key = bucket.get_key(key_name)
+	print "key %s" % key
+	if key :
+		output_file = output_dir + key_name
+		output_dir = os.path.dirname(output_file)
+		print "output directory %s" % output_dir
+		# Check if directory exist if not create it
+		if os.path.exists(output_dir):
+			key.get_contents_to_filename(output_file)
+		else:
+			# We create the directory
+			os.makedirs(output_dir)
+			key.get_contents_to_filename(output_file)
+
+		return output_file
+
+
 
 def retrieve_msg(acces_key, secret_key, sqs_conn, queue):
 
