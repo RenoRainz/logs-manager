@@ -65,7 +65,7 @@ def main(argv=None):
 				s3_key =  record_json['Records'][0]['s3']['object']['key']
 				print "bucket : %s , key : %s" % (bucket, s3_key)
 				# Retrieve file from S3
-				retrieve_file(s3_conn, bucket, s3_key, args.directory)
+				file_to_parse = retrieve_file(s3_conn, bucket, s3_key, args.directory)
 
 def get_args():
 
@@ -93,7 +93,7 @@ def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
 	if key :
 		output_file = output_dir + key_name
 		output_dir = os.path.dirname(output_file)
-		print "output directory %s" % output_dir
+		#print "output directory %s" % output_dir
 		# Check if directory exist if not create it
 		if os.path.exists(output_dir):
 			key.get_contents_to_filename(output_file)
@@ -101,6 +101,13 @@ def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
 			# We create the directory
 			os.makedirs(output_dir)
 			key.get_contents_to_filename(output_file)
+
+		# If compress, uncompress
+		if output_file.endswith('.gz'):
+			output_filename, output_file_extension = os.path.splitext(output_file)
+			print "output_filename %s" % output_filename
+			with open(output_filename, 'wb') as f_out, gzip.open(output_file, 'rb', 0) as f_in:
+				shutil.copyfileobj(f_in, f_out)
 
 		return output_file
 
