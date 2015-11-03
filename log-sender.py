@@ -99,7 +99,6 @@ def sent_to_s3(acces_key, secret_key, bucket_name, key, filename, compress, comp
 		print "Compression before sending"
 		# copy file to compress dir
 		compress_file = compress_dir + "/" + str(os.path.basename(filename)) + ".gz"
-		shutil.copyfile(filename, compress_file)
 
 		# Compression
 		with open(filename, 'rb') as f_in, gzip.open(compress_file, 'wb') as f_out:
