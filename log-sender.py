@@ -10,13 +10,15 @@
 import boto
 import sys
 import os
-import time
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 import argparse
 import shutil
 import gzip
 import yaml
+import posix_ipc
+import mmap
+import time
 
 ##########################################################
 # Connect to S3 and send logs
@@ -95,6 +97,58 @@ def main(argv=None):
 		# Set default value to /tmp
 		compress_dir = '/tmp'
 
+	if 'pid_dir' in conf_map['global']:
+		pid_dir = conf_map['global']['pid_dir']
+	else:
+		# Set default value to /tmp
+		pid_dir = '/var/run/log-sender'
+
+	# We create a  pid file for each instance
+	pid = os.getpid()
+	if not os.path.exists(pid_dir):
+		# We create the directory
+		try:
+			os.makedirs(pid_dir)
+		except :
+			error = sys.exc_info()[0]
+			print "Error creating dir %s. Error type %s" % (pid_dir, error)
+			sys.exit(4)
+
+	pid_file = str(pid_dir) + "/" + str(pid)
+	try:
+		pid_fd = open(pid_file,'w')
+		pid_fd.write(str(pid))
+		pid_fd.close()
+	except:
+		error = sys.exc_info()[0]
+		print "Error creating file %s. Error type %s" % (pid_file, error)
+		sys.exit(4)
+
+
+	# Now we have a pid store in a file, we can instanciate
+	# a SHM fd to communicate with the WEB API with the pid number
+	shm_name = "/" + "log_sender_" + str(pid)
+	try:
+		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 8192, mode = 644)
+	except:
+		error = sys.exc_info()[0]
+		print "Error creating SHM. Error type %s" %  error
+		sys.exit(4)
+
+	# MMap the shared memory
+	try:
+		shm_mapfile = mmap.mmap(shm.fd, shm.size)
+		shm.close_fd()
+	except:
+		error = sys.exc_info()[0]
+		print "Error mapping SHM. Error type %s" %  error
+		sys.exit(4)
+
+	#shm_mapfile.seek(0)
+	#shm_mapfile.write("toto")
+	#shm_mapfile.close()
+
+
 	# Get api acces keys
 	myfile = open(credentials_file, 'r')
 	for line in myfile:
@@ -106,12 +160,10 @@ def main(argv=None):
 	s3_conn = S3Connection(acces_key, secret_key)
 	try:
 		bucket = s3_conn.get_bucket(bucket_name)
-	except:
+	except :
 		error = sys.exc_info()[0]
 		print "S3 error : %s" % error
 		sys.exit(3)
-
-
 
 	# TODO : need to put this in a infinite loop
 
@@ -127,6 +179,9 @@ def main(argv=None):
 			if delta > 60 :
 				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
 				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
+
+	# At this end, remove pid_dir
+	os.remove(pid_file)
 
 def get_args():
 	"""

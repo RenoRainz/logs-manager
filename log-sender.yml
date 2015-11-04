@@ -6,4 +6,5 @@ global:
   bucket_name: 'syslog-input'
   delay_time: '60'
   compress: True
-  compress_dir: /tmp
+  compress_dir: '/tmp'
+  pid_dir: '/tmp/run/log-sender'
