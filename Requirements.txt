@@ -1,7 +1,3 @@
 pip-packages :
  - boto
- - posix_ipc
  - PyYAML
-
-Packages :
-python-dev
