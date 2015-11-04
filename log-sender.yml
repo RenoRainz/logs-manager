@@ -4,6 +4,6 @@ global:
   region: 'eu-west-1'
   input_queue_name: 'syslog-input'
   bucket_name: 'syslog-input'
-  interval_time: '5'
+  delay_time: '60'
   compress: True
   compress_dir: /tmp

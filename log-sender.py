@@ -7,7 +7,7 @@
 #
 ##########################################################
 
-#import boto
+import boto
 import sys
 import os
 import time
@@ -47,11 +47,11 @@ def main(argv=None):
 		sys.exit(0)
 
 	# Setting up configuration variables
-	if 'interval_time' in conf_map['global']:
-		interval_time = conf_map['global']['interval_time']
+	if 'delay_time' in conf_map['global']:
+		delay_time = conf_map['global']['delay_time']
 	else:
 		# Set a default value
-		interval_time = '10'
+		delay_time = '60'
 
 	if 'bucket_name' in conf_map['global']:
 		bucket_name = conf_map['global']['bucket_name']
@@ -103,6 +103,16 @@ def main(argv=None):
 			secret_key = line.split()[2]
 	myfile.close()
 
+	s3_conn = S3Connection(acces_key, secret_key)
+	try:
+		bucket = s3_conn.get_bucket(bucket_name)
+	except:
+		error = sys.exc_info()[0]
+		print "S3 error : %s" % error
+		sys.exit(3)
+
+
+
 	# TODO : need to put this in a infinite loop
 
 	# Browse into the directory and check when
@@ -116,7 +126,7 @@ def main(argv=None):
 			delta = (int(now) - int(last_modification))
 			if delta > 60 :
 				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
-				sent_to_s3(acces_key, secret_key, bucket_name, relative_path, full_path, compress, compress_dir)
+				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
 
 def get_args():
 	"""
@@ -131,46 +141,61 @@ def get_args():
 	return args
 
 
-def sent_to_s3(acces_key, secret_key, bucket_name, key, filename, compress, compress_dir):
+def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 
 	"""
 	Function to sent a file to S3 bucket
 	"""
 
-	# TODO: put this block in try
-	s3_conn = S3Connection(acces_key, secret_key)
-	bucket = s3_conn.get_bucket(bucket_name)
-	bucket_key = Key(bucket)
-
 	# Todo : Fix this
 	if compress:
 		key = str(key) + ".gz"
-		print key
 
-	bucket_key.key = str(key)
+	bucket_key = Key(bucket)
+	if isinstance(bucket_key, boto.s3.key.Key):
+		bucket_key.key = str(key)
+	else:
+		print "Error accessing bucket key : %s" % bucket_key
+		sys.exit(3)
+
 
 	if compress:
-		print "Compression before sending"
 		# copy file to compress dir
 		compress_file = compress_dir + "/" + str(os.path.basename(filename)) + ".gz"
 
 		# Compression
-		with open(filename, 'rb') as f_in, gzip.open(compress_file, 'wb') as f_out:
-			shutil.copyfileobj(f_in, f_out)
+		try:
+			with open(filename, 'rb') as f_in, gzip.open(compress_file, 'wb') as f_out:
+				shutil.copyfileobj(f_in, f_out)
+		except:
+			print "Error compressing %s " % compress_file
+			sys.exit(3)
 
-		sent_file = open(compress_file, 'r')
-		#print "Sent to S3 desactivated"
-		bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
-		sent_file.close()
+		try:
+			sent_file = open(compress_file, 'r')
+			#print "Sent to S3 desactivated"
+			bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
+			sent_file.close()
+			print "File %s sent." % filename
+		except:
+			print "Error sending %s to bucket key : %s" % (compress_file, bucket_key)
+			sys.exit(3)
 
 		# Delete file
 		delete_file(compress_file)
 
 	else:
-		sent_file = open(filename, 'r')
-		#print "Sent to S3 desactivated"
-		bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
-		sent_file.close()
+		try:
+			sent_file = open(filename, 'r')
+			#print "Sent to S3 desactivated"
+			bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
+			sent_file.close()
+			print "File %s sent." % filename
+		except:
+			print "Error sending %s to bucket key : %s" % (compress_file, bucket_key)
+			sys.exit(3)
+
+
 
 		# Delete file
 		delete_file(filename)
@@ -182,7 +207,6 @@ def delete_file(filename):
 	"""
 
 	if os.path.exists(filename):
-		print "delete file %s" % filename
 		print "Delete desactivated"
 		#os.remove(filename)
 
