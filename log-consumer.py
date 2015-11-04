@@ -140,7 +140,7 @@ def get_args():
 
 	parser = argparse.ArgumentParser(description='Check SQS for notification and Get log file from S3')
 	parser.add_argument('--config', type=str, help='Path to the configuration file', required=False)
-	parser.add_argument('--dump', type=bool, help='Dump configuration file', required=False)
+	parser.add_argument('--dump', type=bool, help='Boolean, Dump configuration file', required=False)
 
 	args = parser.parse_args()
 
@@ -192,9 +192,14 @@ def retrieve_msg(sqs_conn, queue):
 	Function to retrieve a msg from a SQS queue
 	"""
 
-	msg = queue.read()
+	try:
+		msg = queue.read()
+	except:
+		print "Error during retrieving message."
+		sys.exit(3)
+		
 	# Check if we get a message
-	if msg and len(msg) > 0:
+	if isinstance(msg, boto.sqs.message.Message) and len(msg) > 0:
 		return msg
 	else:
 		print "Queue empty"
@@ -206,7 +211,12 @@ def delete_msg(sqs_conn, queue, message):
 	Function to delete a msg from a SQS queue
 	"""
 
-	is_deleted = sqs_conn.delete_message(queue,message)
+	try:
+		is_deleted = sqs_conn.delete_message(queue,message)
+	except:
+		print "Error during deleting message."
+		sys.exit(3)
+
 	if is_deleted:
 		print "Message deleted."
 		return True
