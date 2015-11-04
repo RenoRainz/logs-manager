@@ -94,11 +94,17 @@ def main(argv=None):
     # TODO: put this block in try
 	# Connection to SQS
 	sqs_conn = boto.sqs.connect_to_region(region, aws_access_key_id=acces_key, aws_secret_access_key=secret_key)
+
 	# Connection to S3
 	s3_conn = S3Connection(acces_key, secret_key)
 
     # Get queue
 	queue = sqs_conn.get_queue(input_queue_name)
+	if not queue:
+		print "Error during SQS connection."
+		sys.exit(3)
+
+
 
 	# TODO : put all of this in a while
 
@@ -147,8 +153,14 @@ def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
 	"""
 
 	# get_contents_to_file
-	bucket = s3_conn.get_bucket(bucket_name)
-	key = bucket.get_key(key_name)
+	try:
+		bucket = s3_conn.get_bucket(bucket_name)
+		key = bucket.get_key(key_name)
+	except:
+		error = sys.exc_info()[0]
+		print "S3 error : %s" % error
+		sys.exit(3)
+
 
 	if key :
 		output_file = output_dir + key_name
