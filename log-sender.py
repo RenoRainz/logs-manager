@@ -18,14 +18,6 @@ import shutil
 import gzip
 import yaml
 
-
-# Global variables
-#INPUT_QUEUE_NAME  = 'syslog-input'
-#BUCKET_NAME = 'syslog-input'
-#REGION = 'eu-west-1'
-#CREDENTIALS_FILE = 'credentials/credentials.txt'
-
-
 ##########################################################
 # Connect to S3 and send logs
 ##########################################################
@@ -111,13 +103,6 @@ def main(argv=None):
 			secret_key = line.split()[2]
 	myfile.close()
 
-	# Directory to watch
-	#walk_dir = args.directory
-
-	# Compression
-	#compress = args.compress
-	#compress_dir = args.compress_dir
-
 	# TODO : need to put this in a infinite loop
 
 	# Browse into the directory and check when
@@ -140,10 +125,6 @@ def get_args():
 	parser = argparse.ArgumentParser(description='Sent log file to S3')
 	parser.add_argument('--config', type=str, help='Path to the configuration file', required=False)
 	parser.add_argument('--dump', type=bool, help='Dump configuration file', required=False)
-
-	#parser.add_argument('--directory', type=str, help='Directory to watch', required=True)
-	#parser.add_argument('--compress', type=bool, required=False, help='Activate compression', default=False)
-	#parser.add_argument('--compress_dir', type=str, help='Directory to use during compression', required=False, default='/tmp')
 
 	args = parser.parse_args()
 
