@@ -129,7 +129,7 @@ def main(argv=None):
 	# a SHM fd to communicate with the WEB API with the pid number
 	shm_name = "/" + "log_sender_" + str(pid)
 	try:
-		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 8192, mode = 644)
+		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 1024, mode = 600)
 	except:
 		error = sys.exc_info()[0]
 		print "Error creating SHM. Error type %s" %  error
