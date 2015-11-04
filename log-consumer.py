@@ -20,38 +20,87 @@ import argparse
 import shutil
 import gzip
 import json
+import yaml
 
-# Global variables
-INPUT_QUEUE_NAME  = 'syslog-input'
-REGION = 'eu-west-1'
-CREDENTIALS_FILE = 'credentials/credentials.txt'
 
 ##########################################################
 # Connect to SQS and retrieve message
 ##########################################################
 def main(argv=None):
 
+	# Get args
+	args = get_args()
+
+	# Get configuration file
+	if args.config:
+		conf_file = args.config
+	else:
+		conf_file = 'log-consumer.yml'
+
+	# Parsing config file
+	if os.path.isfile(conf_file):
+		f = open(conf_file, 'rb')
+		conf_map = yaml.safe_load(f)
+		f.close()
+	else:
+		print "Configuration file not found. Exiting ..."
+		sys.exit(1)
+
+	# Dump configuration file and exit
+	if args.dump:
+		print yaml.dump(conf_map)
+		sys.exit(0)
+
+	# Setting up configuration variables
+	if 'interval_time' in conf_map['global']:
+		interval_time = conf_map['global']['interval_time']
+	else:
+		# Set a default value
+		interval_time = '10'
+
+	if 'store_directory' in conf_map['global']:
+		store_directory = conf_map['global']['store_directory']
+	else:
+		print "store_directory value not found in %s. Exiting ..." % conf_file
+		sys.exit(2)
+
+	if 'credentials_file' in conf_map['global']:
+		credentials_file = conf_map['global']['credentials_file']
+	else:
+		print "credentials_file value not found in %s. Exiting ..." % conf_file
+		sys.exit(2)
+
+	if 'region' in conf_map['global']:
+		region = conf_map['global']['region']
+	else:
+		print "region value not found in %s. Exiting ..." % conf_file
+		sys.exit(2)
+
+	if 'input_queue_name' in conf_map['global']:
+		input_queue_name = conf_map['global']['input_queue_name']
+	else:
+		print "input_queue_name value not found in %s. Exiting ..." % conf_file
+		sys.exit(2)
+
 	# Get api acces keys
-	myfile = open(CREDENTIALS_FILE, 'r')
+	myfile = open(credentials_file, 'r')
 	for line in myfile:
 		if line.split()[0] == 'log-manager':
 			acces_key = line.split()[1]
 			secret_key = line.split()[2]
 	myfile.close()
 
-	# Get args
-	args = get_args()
 
     # TODO: put this block in try
 	# Connection to SQS
-	sqs_conn = boto.sqs.connect_to_region(REGION, aws_access_key_id=acces_key, aws_secret_access_key=secret_key)
+	sqs_conn = boto.sqs.connect_to_region(region, aws_access_key_id=acces_key, aws_secret_access_key=secret_key)
 	# Connection to S3
 	s3_conn = S3Connection(acces_key, secret_key)
 
     # Get queue
-	queue = sqs_conn.get_queue('syslog-input')
+	queue = sqs_conn.get_queue(input_queue_name)
 
-	# Todo : put all of this in a while
+	# TODO : put all of this in a while
 
     # Retrieve messages
 	msg = retrieve_msg(sqs_conn, queue)
@@ -67,7 +116,7 @@ def main(argv=None):
 				s3_key =  record_json['Records'][0]['s3']['object']['key']
 
 				# Retrieve file from S3
-				file_to_parse = retrieve_file(s3_conn, bucket, s3_key, args.directory)
+				file_to_parse = retrieve_file(s3_conn, bucket, s3_key, store_directory)
 				print "file %s retrieved" % file_to_parse
 
 				# if file exist, we delete msg in SQS
@@ -84,7 +133,8 @@ def get_args():
     """
 
 	parser = argparse.ArgumentParser(description='Check SQS for notification and Get log file from S3')
-	parser.add_argument('--directory', type=str, help='Directory to store the file', required=True)
+	parser.add_argument('--config', type=str, help='Path to the configuration file', required=False)
+	parser.add_argument('--dump', type=bool, help='Dump configuration file', required=False)
 
 	args = parser.parse_args()
 

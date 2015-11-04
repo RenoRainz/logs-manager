@@ -1,0 +1,6 @@
+global:
+  credentials_file: 'credentials/credentials.txt'
+  store_directory: '/tmp/working/'
+  region: 'eu-west-1'
+  input_queue_name: 'syslog-input'
+  interval_time: '5'
