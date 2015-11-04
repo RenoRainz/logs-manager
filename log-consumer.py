@@ -2,7 +2,7 @@
 ##########################################################
 #
 # Pull a SQS object to get notified
-# and retrieve log in a S3 bucket
+# and retrieve log file in a S3 bucket
 #
 # Version: 2015-09-23
 #
@@ -51,22 +51,31 @@ def main(argv=None):
     # Get queue
 	queue = sqs_conn.get_queue('syslog-input')
 
-    # Retrieve messages
-	msg = retrieve_msg(acces_key, secret_key, sqs_conn, queue)
+	# Todo : put all of this in a while
 
-	# Extracting informations : bucket name and key
+    # Retrieve messages
+	msg = retrieve_msg(sqs_conn, queue)
+
 	if msg :
 		record = msg.get_body()
 		record_json = json.loads(record)
 
+		# Extracting informations : bucket name and key
 		if 'Records' in record_json:
 			if 's3' in record_json['Records'][0]:
 				bucket = record_json['Records'][0]['s3']['bucket']['name']
 				s3_key =  record_json['Records'][0]['s3']['object']['key']
-				print "bucket : %s , key : %s" % (bucket, s3_key)
+
 				# Retrieve file from S3
 				file_to_parse = retrieve_file(s3_conn, bucket, s3_key, args.directory)
 				print "file %s retrieved" % file_to_parse
+
+				# if file exist, we delete msg in SQS
+				if os.path.isfile(file_to_parse):
+					# We can delete the msg
+					delete_msg(sqs_conn, queue, msg)
+
+
 
 def get_args():
 
@@ -90,12 +99,12 @@ def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
 	# get_contents_to_file
 	bucket = s3_conn.get_bucket(bucket_name)
 	key = bucket.get_key(key_name)
-	print "key %s" % key
+
 	if key :
 		output_file = output_dir + key_name
 		output_dir = os.path.dirname(output_file)
 
-		# Check if directory exist if not create it
+		# Check if directory exist if not create it, then retrieve the files
 		if os.path.exists(output_dir):
 			key.get_contents_to_filename(output_file)
 		else:
@@ -108,13 +117,14 @@ def retrieve_file(s3_conn, bucket_name, key_name, output_dir):
 			output_filename, output_file_extension = os.path.splitext(output_file)
 			with open(output_filename, 'wb') as f_out, gzip.open(output_file, 'rb', 0) as f_in:
 				shutil.copyfileobj(f_in, f_out)
-			output_file = output_filename
+			# deleting tmp file
+			os.remove(output_file)
 
-		return output_file
+		return output_filename
 
 
 
-def retrieve_msg(acces_key, secret_key, sqs_conn, queue):
+def retrieve_msg(sqs_conn, queue):
 
 	"""
 	Function to retrieve a msg from a SQS queue
@@ -128,7 +138,16 @@ def retrieve_msg(acces_key, secret_key, sqs_conn, queue):
 		print "Queue empty"
         return None
 
+def delete_msg(sqs_conn, queue, message):
 
+	"""
+	Function to delete a msg from a SQS queue
+	"""
+
+	is_deleted = sqs_conn.delete_message(queue,message)
+	if is_deleted:
+		print "Message deleted."
+		return True
 
 if __name__ == "__main__":
 	sys.exit(main())
