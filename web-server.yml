@@ -1,0 +1,4 @@
+global:
+  port: 8080
+  pid_dir_log_sender: '/tmp/run/log-sender'
+  pid_dir_log_consumer: '/tmp/run/log-consumer'
