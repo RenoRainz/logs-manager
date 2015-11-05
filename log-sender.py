@@ -176,7 +176,7 @@ def main(argv=None):
 			last_modification = os.path.getmtime(full_path)
 			now = time.time()
 			delta = (int(now) - int(last_modification))
-			if delta > 60 :
+			if delta > int(delay_time) :
 				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
 				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
 
