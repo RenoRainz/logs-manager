@@ -149,11 +149,6 @@ def main(argv=None):
 		print "Error mapping SHM. Error type %s" %  error
 		sys.exit(4)
 
-	#shm_mapfile.seek(0)
-	#shm_mapfile.write("toto")
-	#shm_mapfile.close()
-
-
 	# Get api acces keys
 	myfile = open(credentials_file, 'r')
 	for line in myfile:
@@ -182,19 +177,22 @@ def main(argv=None):
 			now = time.time()
 			delta = (int(now) - int(last_modification))
 			if delta > int(delay_time) :
-				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
 				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
 
 				# Add counter in SHM
 				files_proceed += 1
 				shm_mapfile.seek(0)
 				shm_mapfile.write(str(files_proceed))
-				#time.sleep(300)
+				time.sleep(5)
 
 	# At this end, remove pid_dir
 	os.remove(pid_file)
-	#closing SHM
+
+	# Closing SHM
 	shm_mapfile.close()
+
+	# TODO : Delete SHM at the moment I don't know how
+	# unlink() seem not working
 
 def get_args():
 	"""
