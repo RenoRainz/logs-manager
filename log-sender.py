@@ -103,6 +103,10 @@ def main(argv=None):
 		# Set default value to /tmp
 		pid_dir = '/var/run/log-sender'
 
+	# Clean pid_dir of old and used pid dir
+	clean_pid(pid_dir)
+
+
 	# We create a  pid file for each instance
 	pid = os.getpid()
 	if not os.path.exists(pid_dir):
@@ -127,9 +131,10 @@ def main(argv=None):
 
 	# Now we have a pid store in a file, we can instanciate
 	# a SHM fd to communicate with the WEB API with the pid number
-	shm_name = "/" + "log_sender_" + str(pid)
+	#shm_name = "/" + "log_sender_" + str(pid)
+	shm_name = "/myshm5"
 	try:
-		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 1024, mode = 600)
+		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 1024, mode = 644)
 	except:
 		error = sys.exc_info()[0]
 		print "Error creating SHM. Error type %s" %  error
@@ -166,7 +171,7 @@ def main(argv=None):
 		sys.exit(3)
 
 	# TODO : need to put this in a infinite loop
-
+	files_proceed = 0
 	# Browse into the directory and check when
 	# the file was modified, if > 1 we process it
 	for root, subdirs, files in os.walk(watch_directory):
@@ -180,8 +185,16 @@ def main(argv=None):
 				#print 'send %s to bucket %s/%s' % (full_path, BUCKET_NAME, relative_path)
 				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
 
+				# Add counter in SHM
+				files_proceed += 1
+				shm_mapfile.seek(0)
+				shm_mapfile.write(str(files_proceed))
+				#time.sleep(10)
+
 	# At this end, remove pid_dir
 	os.remove(pid_file)
+	#closing SHM
+	shm_mapfile.close()
 
 def get_args():
 	"""
@@ -195,6 +208,24 @@ def get_args():
 
 	return args
 
+def clean_pid(pid_dir):
+
+	"""
+	Function to delete unused pid dir.
+	"""
+
+	# Browse pid dir to know shm name
+	for dirname, dirnames, filenames in os.walk(pid_dir):
+		# print path to all filenames.
+		for filename in filenames:
+			print "file : %s" % os.path.join(dirname, filename)
+
+			# Check if process still exist
+			try :
+				os.kill(int(filename), 0)
+			except OSError:
+				# Delete file
+				os.remove(os.path.join(dirname, filename))
 
 def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 
@@ -228,8 +259,8 @@ def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 
 		try:
 			sent_file = open(compress_file, 'r')
-			#print "Sent to S3 desactivated"
-			bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
+			print "Sent to S3 desactivated"
+			#bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
 			sent_file.close()
 			print "File %s sent." % filename
 		except:
