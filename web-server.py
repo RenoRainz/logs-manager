@@ -64,14 +64,47 @@ def main(argv=None):
 		sys.exit(2)
 
 
+	# Browse pid dir to know shm name for log_sender
+	pids_list = list()
 	for dirname, dirnames, filenames in os.walk(pid_dir_log_sender):
-		# print path to all subdirectories first.
-		for subdirname in dirnames:
-			print(os.path.join(dirname, subdirname))
 		# print path to all filenames.
 		for filename in filenames:
-			print(os.path.join(dirname, filename))
+			# add pid to the list
+			pids_list.append(int(filename))
 
+	# Loop in pids list and open shm for each pid
+	shm_list = list()
+	shm_mapfile_list = list()
+	for pid in pids_list:
+		# Try reading SHM
+		# Now we have a pid store in a file, we can instanciate
+		# a SHM fd to communicate with the WEB API with the pid number
+		shm_name = "/" + "log_sender_" + str(pid)
+		shm_list.append(shm_name)
+
+		try:
+			shm = posix_ipc.SharedMemory(shm_name, size = 1024, mode = 400)
+		except:
+			error = sys.exc_info()[0]
+			print "Error creating SHM. Error type %s" %  error
+			sys.exit(4)
+
+		# MMap the shared memory
+		try:
+			shm_mapfile = mmap.mmap(shm.fd, shm.size)
+			shm_mapfile_list.append(shm_mapfile)
+			shm.close_fd()
+		except:
+			error = sys.exc_info()[0]
+			print "Error mapping SHM. Error type %s" %  error
+			sys.exit(4)
+
+	# loop in shm to read them
+	for shm_mapfile in shm_mapfile_list:
+
+		shm_mapfile.seek(0)
+		test = shm_mapfile.read(1)
+		print "shm value : %s" % test
 
 def get_args():
 	"""
