@@ -131,10 +131,10 @@ def main(argv=None):
 
 	# Now we have a pid store in a file, we can instanciate
 	# a SHM fd to communicate with the WEB API with the pid number
-	#shm_name = "/" + "log_sender_" + str(pid)
-	shm_name = "/myshm5"
+	shm_name = "/" + "log_sender_" + str(pid)
+
 	try:
-		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 1024, mode = 644)
+		shm = posix_ipc.SharedMemory(shm_name, posix_ipc.O_CREX, size = 1024, mode = 0600)
 	except:
 		error = sys.exc_info()[0]
 		print "Error creating SHM. Error type %s" %  error
@@ -189,7 +189,7 @@ def main(argv=None):
 				files_proceed += 1
 				shm_mapfile.seek(0)
 				shm_mapfile.write(str(files_proceed))
-				#time.sleep(10)
+				#time.sleep(300)
 
 	# At this end, remove pid_dir
 	os.remove(pid_file)
