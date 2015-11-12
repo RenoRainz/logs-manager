@@ -191,8 +191,9 @@ def main(argv=None):
 	# Closing SHM
 	shm_mapfile.close()
 
-	# TODO : Delete SHM at the moment I don't know how
-	# unlink() seem not working
+	# Delete SHM
+	shm.unlink()
+
 
 def get_args():
 	"""
