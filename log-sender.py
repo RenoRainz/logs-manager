@@ -19,6 +19,7 @@ import yaml
 import posix_ipc
 import mmap
 import time
+import json
 
 ##########################################################
 # Connect to S3 and send logs
@@ -166,7 +167,14 @@ def main(argv=None):
 		sys.exit(3)
 
 	# TODO : need to put this in a infinite loop
-	files_proceed = 0
+	files_proceed_counter = 0
+	files_failed_counter = 0
+	stats = dict()
+	stats['nb_file_proceed'] = 0
+	stats['nb_file_failed'] = 0
+	files_proceed = list()
+	files_failed = list()
+
 	# Browse into the directory and check when
 	# the file was modified, if > 1 we process it
 	for root, subdirs, files in os.walk(watch_directory):
@@ -177,13 +185,30 @@ def main(argv=None):
 			now = time.time()
 			delta = (int(now) - int(last_modification))
 			if delta > int(delay_time) :
-				sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
+				rc_sent_to_s3 = sent_to_s3(s3_conn, bucket, relative_path, full_path, compress, compress_dir)
 
-				# Add counter in SHM
-				files_proceed += 1
+				# Update stats if ok
+				if rc_sent_to_s3:
+					files_proceed_counter += 1
+					stats['nb_file_proceed'] = files_proceed_counter
+					files_proceed.append(str(full_path))
+					stats['files_proceed'] = files_proceed
+
+
+				else:
+					files_failed_counter += 1
+					stats['nb_file_failed'] = files_failed_counter
+					files_failed.append(str(full_path))
+					stats['files_failed'] = files_failed
+
+				# Convert dict to json
+				stats_json = json.dumps(stats)
+				print stats_json
+				# Update SHM
 				shm_mapfile.seek(0)
-				shm_mapfile.write(str(files_proceed))
-				time.sleep(5)
+				shm_mapfile.write(stats_json)
+
+	time.sleep(60)
 
 	# At this end, remove pid_dir
 	os.remove(pid_file)
@@ -232,6 +257,9 @@ def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 	Function to sent a file to S3 bucket
 	"""
 
+	# Return code
+	rc = True
+
 	# Todo : Fix this
 	if compress:
 		key = str(key) + ".gz"
@@ -243,7 +271,6 @@ def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 		print "Error accessing bucket key : %s" % bucket_key
 		sys.exit(3)
 
-
 	if compress:
 		# copy file to compress dir
 		compress_file = compress_dir + "/" + str(os.path.basename(filename)) + ".gz"
@@ -254,17 +281,19 @@ def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 				shutil.copyfileobj(f_in, f_out)
 		except:
 			print "Error compressing %s " % compress_file
-			sys.exit(3)
+			#sys.exit(3)
+			rc = False
 
 		try:
 			sent_file = open(compress_file, 'r')
 			print "Sent to S3 desactivated"
 			#bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
 			sent_file.close()
-			print "File %s sent." % filename
+			#print "File %s sent." % filename
 		except:
 			print "Error sending %s to bucket key : %s" % (compress_file, bucket_key)
-			sys.exit(3)
+			#sys.exit(3)
+			rc = False
 
 		# Delete file
 		delete_file(compress_file)
@@ -275,15 +304,19 @@ def sent_to_s3(s3_conn, bucket, key, filename, compress, compress_dir):
 			#print "Sent to S3 desactivated"
 			bucket_key.set_contents_from_file(sent_file, replace=True, rewind=True)
 			sent_file.close()
-			print "File %s sent." % filename
+			#print "File %s sent." % filename
 		except:
 			print "Error sending %s to bucket key : %s" % (compress_file, bucket_key)
-			sys.exit(3)
+			#sys.exit(3)
+			rc = False
 
 
 
 		# Delete file
+		# TODO : handle return of this function.
 		delete_file(filename)
+
+	return rc
 
 def delete_file(filename):
 
