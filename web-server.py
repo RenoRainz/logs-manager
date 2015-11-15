@@ -23,6 +23,8 @@ import yaml
 import posix_ipc
 import mmap
 import time
+import json
+import re
 
 
 def main(argv=None):
@@ -100,11 +102,34 @@ def main(argv=None):
 			sys.exit(4)
 
 	# loop in shm to read them
+	instance_num = 0
 	for shm_mapfile in shm_mapfile_list:
 
+		output = ""
 		shm_mapfile.seek(0)
-		test = shm_mapfile.read(1)
-		print "shm value : %s" % test
+		shm_mapfile_size = shm_mapfile.size()
+		output = shm_mapfile.read(int(shm_mapfile_size))
+		instance_num += 1
+		print "Instance #%s : %s \n" % (str(instance_num), json.dumps(json.loads(del_illegal_char(output)), separators=(',', ':'), sort_keys=True, indent=4 ))
+
+def del_illegal_char(mystring):
+
+	"""
+
+	"""
+
+	RE_XML_ILLEGAL = u'([\u0000-\u0008\u000b-\u000c\u000e-\u001f\ufffe-\uffff])' + \
+					u'|' + \
+					u'([%s-%s][^%s-%s])|([^%s-%s][%s-%s])|([%s-%s]$)|(^[%s-%s])' % \
+					(unichr(0xd800),unichr(0xdbff),unichr(0xdc00),unichr(0xdfff),
+					unichr(0xd800),unichr(0xdbff),unichr(0xdc00),unichr(0xdfff),
+					unichr(0xd800),unichr(0xdbff),unichr(0xdc00),unichr(0xdfff),
+					)
+
+	mystring = re.sub(RE_XML_ILLEGAL, "", mystring)
+	return mystring
+
+
 
 def get_args():
 	"""
