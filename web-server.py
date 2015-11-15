@@ -25,9 +25,14 @@ import mmap
 import time
 import json
 import re
+import BaseHTTPServer, cgi
 
 
 def main(argv=None):
+
+	# TODO : fix this.
+	global pid_dir_log_sender
+	global pid_dir_log_consumer
 
 	# Get args
 	args = get_args()
@@ -65,7 +70,14 @@ def main(argv=None):
 		print "Pid dir for log_consumer is missing in config file %s. Exiting ..." % pid_dir_log_consumer
 		sys.exit(2)
 
-	get_stats(pid_dir_log_sender, pid_dir_log_consumer)
+	#get_stats(pid_dir_log_sender, pid_dir_log_consumer)
+
+	# instanciate web Server
+	servAddr = ('', 8080)
+	serv = BaseHTTPServer.HTTPServer(servAddr, httpServHandler)
+	serv.serve_forever()
+
+
 
 def get_stats(pid_dir_log_sender, pid_dir_log_consumer) :
 
@@ -117,7 +129,9 @@ def get_stats(pid_dir_log_sender, pid_dir_log_consumer) :
 		shm_mapfile_size = shm_mapfile.size()
 		output = shm_mapfile.read(int(shm_mapfile_size))
 		instance_num += 1
-		print "Instance #%s : %s \n" % (str(instance_num), json.dumps(json.loads(del_illegal_char(output)), separators=(',', ':'), sort_keys=True, indent=4 ))
+		#print "Instance #%s : %s \n" % (str(instance_num), json.dumps(json.loads(del_illegal_char(output)), separators=(',', ':'), sort_keys=True, indent=4 ))
+
+		return json.dumps(json.loads(del_illegal_char(output)), separators=(',', ':'), sort_keys=True, indent=4 )
 
 def del_illegal_char(mystring):
 
@@ -152,7 +166,29 @@ def get_args():
 
 	return args
 
+class httpServHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	"""
+	Class to handle HTTP request
+	"""
 
+	def do_GET(self):
+		# Extract query string after ?
+		if self.path.find('?') != -1:
+			 self.path, self.query_string = self.path.split('?', 1)
+		else:
+			 self.query_string = ''
+		self.send_response(200)
+		self.send_header('Content-type','text/html')
+		self.end_headers()
+		sys.stdout = self.wfile
+
+		if self.query_string == "stats":
+			#self.wfile.write(self.query_string)
+			stats = get_stats(pid_dir_log_sender, pid_dir_log_consumer)
+			self.wfile.write(stats)
+
+		else:
+			self.wfile.write("Unknow Command")
 
 if __name__ == "__main__":
 	sys.exit(main())
