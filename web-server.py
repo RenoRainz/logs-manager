@@ -115,7 +115,9 @@ def main(argv=None):
 def del_illegal_char(mystring):
 
 	"""
-
+	Function to remove unwanted character.
+	Thx to Chase Seibert.
+	http://chase-seibert.github.io/blog/2011/05/20/stripping-control-characters-in-python.html
 	"""
 
 	RE_XML_ILLEGAL = u'([\u0000-\u0008\u000b-\u000c\u000e-\u001f\ufffe-\uffff])' + \
