@@ -65,6 +65,13 @@ def main(argv=None):
 		print "Pid dir for log_consumer is missing in config file %s. Exiting ..." % pid_dir_log_consumer
 		sys.exit(2)
 
+	get_stats(pid_dir_log_sender, pid_dir_log_consumer)
+
+def get_stats(pid_dir_log_sender, pid_dir_log_consumer) :
+
+	"""
+	Function to display stats of log_sender/consumer process.
+	"""
 
 	# Browse pid dir to know shm name for log_sender
 	pids_list = list()
